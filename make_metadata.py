@@ -19,7 +19,7 @@ def run():
         filepath = filepath[len("etp-data/") :]
         topdir = filepath.split("/")[0]
         # Render markdown to HTML
-        markdown_txt = open(os.path.join("data", filepath)).read()
+        markdown_txt = open(os.path.join("etp-data", filepath)).read()
         # If first line is an h1, extract that into title
         title = None
         lines = markdown_txt.split("\n")
