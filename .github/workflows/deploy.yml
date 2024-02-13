@@ -1,0 +1,53 @@
+name: Deploy demo
+
+on:
+  push:
+    branches:
+    - main
+  workflow_dispatch:
+  schedule:
+    - cron:  '15 0 * * *'
+
+jobs:
+  scheduled:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out this repo
+      uses: actions/checkout@v2
+    - name: Check out chaseleinart/etp-data
+      uses: actions/checkout@v2
+      with:
+        repository: chaseleinart/etp-data
+        path: data
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.11"
+    - name: Set up Node
+      uses: actions/setup-node@v1
+      with:
+        node-version: '12'
+    - name: Install Python dependencies
+      run: |
+        pip install -r requirements.txt
+    - name: Build metadata
+      run: python make_metadata.py
+    - name: Build databases
+      run: |-
+        csvs-to-sqlite data etp.db
+    - name: Deploy to Heroku
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      run: |-
+        export LATEST_DATASETTE=`curl -s "https://api.github.com/repos/simonw/datasette/commits/main" | jq -r .sha`
+        npm install -g heroku
+        heroku plugins:install heroku-builds
+        datasette publish heroku etp.db polls.db \
+          -m metadata.json \
+          -n etp-datasette \
+          --install=datasette-vega \
+          --install=datasette-jellyfish \
+          --install='datasette-graphql>=2.1.2' \
+          --install='datasette-copyable>=0.2' \
+          --version-note=$LATEST_DATASETTE \
+          --branch=$LATEST_DATASETTE
